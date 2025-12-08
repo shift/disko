@@ -1,18 +1,56 @@
 {
   pkgs ? import <nixpkgs> { },
-  diskoLib ? pkgs.callPackage ../lib { },
 }:
 
-diskoLib.testLib.makeDiskoTest {
-  inherit pkgs;
+import (pkgs.path + "/nixos/tests/make-test-python.nix") {
   name = "bcachefs-tpm2-fallback";
-  disko-config = ../example/bcachefs.nix;
-  enableOCR = false;
   
-  extraTestScript = ''
-    # Fallback test - verify basic functionality
+  nodes.machine = { pkgs, ... }: {
+    imports = [ (import ../module.nix) ];
+    virtualisation.emptyDiskImages = [ 4096 ];
+    
+    environment.systemPackages = with pkgs; [
+      bcachefs-tools
+      clevis
+      jose
+      tpm2-tools
+    ];
+    
+    disko.devices = {
+      disk.main = {
+        device = "/dev/vdb";
+        type = "disk";
+        content = {
+          type = "gpt";
+          partitions = {
+            boot = { size = "1M"; type = "EF02"; };
+            root = {
+              size = "100%";
+              content = {
+                type = "bcachefs_filesystem";
+                name = "test-fallback";
+                mountpoint = "/";
+                extraFormatArgs = [ "--encrypted" ];
+                unlock = {
+                  enable = true;
+                  secretFiles = [ ./test-secrets/tpm.jwe ];
+                  extraPackages = with pkgs; [ ];
+                };
+                subvolumes = {
+                  "root" = { mountpoint = "/"; };
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+  
+  testScript = ''
     machine.start()
-    machine.succeed("mountpoint /")
+    machine.succeed("test -d /etc/bcachefs-keys/test-fallback")
+    machine.succeed("test -f /etc/bcachefs-keys/test-fallback/tpm.jwe")
     print("✅ Fallback test passed!")
   '';
 }

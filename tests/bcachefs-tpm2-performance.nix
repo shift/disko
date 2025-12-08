@@ -2,7 +2,6 @@
   pkgs ? import <nixpkgs> { },
 }:
 
-# Simple performance test
 import (pkgs.path + "/nixos/tests/make-test-python.nix") {
   name = "bcachefs-tpm2-performance";
   

@@ -2,7 +2,6 @@
   pkgs ? import <nixpkgs> { },
 }:
 
-# Simple VM test for TPM2 functionality
 import (pkgs.path + "/nixos/tests/make-test-python.nix") {
   name = "bcachefs-tpm2-vm-test";
   
